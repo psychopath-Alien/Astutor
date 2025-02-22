@@ -1,7 +1,6 @@
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import check_password_hash
-import mysql.connector
 
 app = Flask(__name__)
 
@@ -28,9 +27,15 @@ class Students(db.Model):
             "username": self.username,
             "password": self.password
         }
+@app.route("/validate", methods=['POST'])
+def validate():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
 
-@app.route("/student/<string:username>/<string:password>", methods=['GET'])
-def get_student(username, password):
+    username = data.get('username')
+    password = data.get('password')
+
     if not username or not password:
         return jsonify({'error': 'Username and password are required'}), 400
 
@@ -38,7 +43,7 @@ def get_student(username, password):
         student = db.session.query(Students).filter_by(username=username).first()
 
         if student and check_password_hash(student.password, password):
-            return jsonify({"Login Success": True, "data": student.to_dict()}), 200
+            return jsonify({"Validation Success": True, "data": student.to_dict()}), 200
         else:
             return jsonify({'error': 'Invalid username or password'}), 401
 
