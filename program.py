@@ -28,8 +28,8 @@ class Students(db.Model):
         }
 
 @app.route("/student/<string:username>/<string:password>", methods=['GET'])
-def get_student(id):
-    student = db.session.get(Students, id)
+def get_student(username, password):
+    student = Students.query.filter_by(username=username, password=password).first()
     if not student:
         return jsonify(
             {
