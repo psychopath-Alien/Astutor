@@ -1,7 +1,9 @@
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
+
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:root@127.0.0.1/mydb'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -14,8 +16,14 @@ class Students(db.Model):
     first_name = db.Column(db.String(45), nullable=False)
     last_name = db.Column(db.String(45), nullable=False)
     gender = db.Column(db.String(20), nullable=False)
-    username = db.Column(db.String(50), nullable=False)
-    password = db.Column(db.String(50), nullable=False)
+    username = db.Column(db.String(50), nullable=False, unique=True)
+    password_hash = db.Column(db.String(128), nullable=False) 
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
     def to_dict(self):
         return {
@@ -23,26 +31,24 @@ class Students(db.Model):
             "first_name": self.first_name,
             "last_name": self.last_name,
             "gender": self.gender,
-            "username": self.username,
-            "password": self.password
+            "username": self.username
         }
 
-@app.route("/student/<string:username>/<string:password>", methods=['GET'])
-def get_student(username, password):
-    student = Students.query.filter_by(username=username, password=password).first()
-    if not student:
-        return jsonify(
-            {
-                "Login Sucess": False,
-                "message": "Account not found"
-            }
-        ), 404
-    return jsonify (
-        {
-            "Login Success": True,
-            "data": student.to_dict()
-        }
-    ), 200
+
+@app.route("/student/login", methods=['POST'])
+def get_student():
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+
+    if not username or not password:
+        return jsonify({"Login Success": False, "message": "Username and password required"}), 400
+
+    student = Students.query.filter_by(username=username).first()
+    if student and student.check_password(password):
+        return jsonify({"Login Success": True, "data": student.to_dict()}), 200
+    else:
+        return jsonify({"Login Success": False, "message": "Invalid credentials"}), 401
 
 if __name__ == '__main__':
     app.run(debug=True)
